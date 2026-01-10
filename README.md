@@ -1,106 +1,175 @@
-# Ralph
+# Ralph for Claude Code
 
 ![Ralph](ralph.webp)
 
-Ralph is an autonomous AI agent loop that runs [Amp](https://ampcode.com) repeatedly until all PRD items are complete. Each iteration is a fresh Amp instance with clean context. Memory persists via git history, `progress.txt`, and `prd.json`.
+An autonomous AI agent loop that runs Claude Code repeatedly until all your product requirements are complete. Let it work while you sleep.
 
-Based on [Geoffrey Huntley's Ralph pattern](https://ghuntley.com/ralph/).
+Based on [Geoffrey Huntley's Ralph pattern](https://ghuntley.com/ralph/), adapted for [Claude Code](https://docs.anthropic.com/en/docs/claude-code) (Anthropic's CLI).
 
-[Read my in-depth article on how I use Ralph](https://x.com/ryancarson/status/2008548371712135632)
+## Features
+
+- **Supervised Mode**: Grandma agent reviews Ralph's work after each iteration
+- **Pre-flight Checks**: Catches branch drift and data model divergence before work starts
+- **Dynamic Model Selection**: Uses Haiku, Sonnet, or Opus based on task complexity
+- **Automatic Archiving**: Previous runs are saved when switching features
 
 ## Prerequisites
 
-- [Amp CLI](https://ampcode.com) installed and authenticated
-- `jq` installed (`brew install jq` on macOS)
-- A git repository for your project
+1. **Claude Code CLI** installed and authenticated
+   ```bash
+   npm install -g @anthropic-ai/claude-code
+   claude auth
+   ```
 
-## Setup
+2. **jq** for JSON processing
+   ```bash
+   brew install jq  # macOS
+   apt install jq   # Linux
+   ```
 
-### Option 1: Copy to your project
+3. A **git repository** for your project
 
-Copy the ralph files into your project:
+## Quick Start
 
-```bash
-# From your project root
-mkdir -p scripts/ralph
-cp /path/to/ralph/ralph.sh scripts/ralph/
-cp /path/to/ralph/prompt.md scripts/ralph/
-chmod +x scripts/ralph/ralph.sh
-```
-
-### Option 2: Install skills globally
-
-Copy the skills to your Amp config for use across all projects:
-
-```bash
-cp -r skills/prd ~/.config/amp/skills/
-cp -r skills/ralph ~/.config/amp/skills/
-```
-
-### Configure Amp auto-handoff (recommended)
-
-Add to `~/.config/amp/settings.json`:
+### 1. Create your prd.json
 
 ```json
 {
-  "amp.experimental.autoHandoff": { "context": 90 }
+  "project": "MyApp",
+  "branchName": "ralph/my-feature",
+  "description": "Add user authentication",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Add users table to database",
+      "description": "As a developer, I need to store user data.",
+      "acceptanceCriteria": [
+        "Create users table with id, email, password_hash",
+        "Migration runs successfully",
+        "Typecheck passes"
+      ],
+      "priority": 1,
+      "complexity": "low",
+      "passes": false,
+      "notes": ""
+    }
+  ]
 }
 ```
 
-This enables automatic handoff when context fills up, allowing Ralph to handle large stories that exceed a single context window.
-
-## Workflow
-
-### 1. Create a PRD
-
-Use the PRD skill to generate a detailed requirements document:
-
-```
-Load the prd skill and create a PRD for [your feature description]
-```
-
-Answer the clarifying questions. The skill saves output to `tasks/prd-[feature-name].md`.
-
-### 2. Convert PRD to Ralph format
-
-Use the Ralph skill to convert the markdown PRD to JSON:
-
-```
-Load the ralph skill and convert tasks/prd-[feature-name].md to prd.json
-```
-
-This creates `prd.json` with user stories structured for autonomous execution.
-
-### 3. Run Ralph
+### 2. Run Ralph (Supervised Mode - Recommended)
 
 ```bash
-./scripts/ralph/ralph.sh [max_iterations]
+./ralph-supervised.sh [max_iterations]
 ```
 
-Default is 10 iterations.
+## How It Works
 
-Ralph will:
-1. Create a feature branch (from PRD `branchName`)
-2. Pick the highest priority story where `passes: false`
-3. Implement that single story
-4. Run quality checks (typecheck, tests)
-5. Commit if checks pass
-6. Update `prd.json` to mark story as `passes: true`
-7. Append learnings to `progress.txt`
-8. Repeat until all stories pass or max iterations reached
+### Supervised Mode (3-Phase Loop)
 
-## Key Files
+```
+Each iteration runs 3 phases:
+
+┌─────────────────────────────────────────────────────────────┐
+│ Phase 1: GRANDMA PRE-FLIGHT (Opus 4.5)                      │
+│   - Checks git diff from main (drift detection)             │
+│   - Validates data models and types                         │
+│   - Writes warnings to guidance.txt                         │
+│   - Can PAUSE before Ralph starts if risk is high           │
+├─────────────────────────────────────────────────────────────┤
+│ Phase 2: RALPH IMPLEMENTATION (Haiku/Sonnet/Opus)           │
+│   - Reads pre-flight warnings from guidance.txt             │
+│   - Implements the next incomplete story                    │
+│   - Model selected based on story complexity                │
+├─────────────────────────────────────────────────────────────┤
+│ Phase 3: GRANDMA POST-REVIEW (Opus 4.5)                     │
+│   - Reviews what Ralph just did                             │
+│   - Updates guidance.txt with corrections                   │
+│   - Can PAUSE if something needs human attention            │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Story Complexity (Model Selection)
+
+Each story can have a `complexity` field that determines which AI model Ralph uses:
+
+| Complexity | Model | Best For |
+|------------|-------|----------|
+| `"low"` | Haiku | Simple CRUD, adding fields, UI tweaks |
+| `"medium"` | Sonnet | New features, integrations, API endpoints (default) |
+| `"high"` | Opus 4.5 | Architectural decisions, complex logic |
+
+If omitted, complexity defaults to `"medium"` (Sonnet).
+
+## Files Reference
 
 | File | Purpose |
 |------|---------|
-| `ralph.sh` | The bash loop that spawns fresh Amp instances |
-| `prompt.md` | Instructions given to each Amp instance |
-| `prd.json` | User stories with `passes` status (the task list) |
-| `prd.json.example` | Example PRD format for reference |
-| `progress.txt` | Append-only learnings for future iterations |
-| `skills/prd/` | Skill for generating PRDs |
-| `skills/ralph/` | Skill for converting PRDs to JSON |
-| `flowchart/` | Interactive visualization of how Ralph works |
+| `ralph-supervised.sh` | **Recommended** - Loop with Grandma supervision |
+| `ralph-claude.sh` | Basic loop script (no supervision) |
+| `prompt-supervised.md` | Instructions for supervised Ralph |
+| `prompt-claude.md` | Instructions for basic Ralph |
+| `grandma-preflight.md` | Grandma's pre-flight check instructions |
+| `grandma-review.md` | Grandma's post-iteration review instructions |
+| `prd.json.example` | Example PRD format with complexity field |
+| `story-template.md` | Template for writing stories |
+| `guidance.txt.template` | Template for Grandma's guidance file |
+| `progress.txt` | Cumulative learnings (auto-generated) |
+| `guidance.txt` | Grandma's guidance for Ralph (auto-generated) |
+
+## Story Sizing Rules
+
+**Critical**: Each story must complete in ONE iteration (one context window).
+
+### Right-sized stories:
+- Add a database column and migration
+- Create a single UI component
+- Add one API endpoint
+- Fix a specific bug
+
+### Too big (split these):
+- "Build the dashboard" → Split into: data model, API, each widget
+- "Add authentication" → Split into: schema, middleware, login UI, session handling
+
+**Rule of thumb**: If you can't describe the change in 2-3 sentences, it's too big.
+
+## Story Ordering
+
+Stories execute in priority order. Dependencies must come first:
+
+1. Schema/database changes
+2. Backend logic / API endpoints
+3. UI components that use the backend
+4. Integration / polish
+
+## Safety Notes
+
+Ralph runs with `--dangerously-skip-permissions`, which allows Claude to:
+- Read and write files
+- Execute commands
+- Make git commits
+
+**Recommendations:**
+- Always run on a feature branch, never main
+- Review commits before pushing
+- Use in a sandboxed environment for untrusted codebases
+- Set reasonable iteration limits
+
+## Debugging
+
+```bash
+# See which stories are done
+cat prd.json | jq '.userStories[] | {id, title, passes, complexity}'
+
+# See learnings from previous iterations
+cat progress.txt
+
+# See Grandma's guidance
+cat guidance.txt
+
+# Check git history
+git log --oneline -10
+```
 
 ## Flowchart
 
@@ -108,89 +177,8 @@ Ralph will:
 
 **[View Interactive Flowchart](https://snarktank.github.io/ralph/)** - Click through to see each step with animations.
 
-The `flowchart/` directory contains the source code. To run locally:
+## Credits
 
-```bash
-cd flowchart
-npm install
-npm run dev
-```
-
-## Critical Concepts
-
-### Each Iteration = Fresh Context
-
-Each iteration spawns a **new Amp instance** with clean context. The only memory between iterations is:
-- Git history (commits from previous iterations)
-- `progress.txt` (learnings and context)
-- `prd.json` (which stories are done)
-
-### Small Tasks
-
-Each PRD item should be small enough to complete in one context window. If a task is too big, the LLM runs out of context before finishing and produces poor code.
-
-Right-sized stories:
-- Add a database column and migration
-- Add a UI component to an existing page
-- Update a server action with new logic
-- Add a filter dropdown to a list
-
-Too big (split these):
-- "Build the entire dashboard"
-- "Add authentication"
-- "Refactor the API"
-
-### AGENTS.md Updates Are Critical
-
-After each iteration, Ralph updates the relevant `AGENTS.md` files with learnings. This is key because Amp automatically reads these files, so future iterations (and future human developers) benefit from discovered patterns, gotchas, and conventions.
-
-Examples of what to add to AGENTS.md:
-- Patterns discovered ("this codebase uses X for Y")
-- Gotchas ("do not forget to update Z when changing W")
-- Useful context ("the settings panel is in component X")
-
-### Feedback Loops
-
-Ralph only works if there are feedback loops:
-- Typecheck catches type errors
-- Tests verify behavior
-- CI must stay green (broken code compounds across iterations)
-
-### Browser Verification for UI Stories
-
-Frontend stories must include "Verify in browser using dev-browser skill" in acceptance criteria. Ralph will use the dev-browser skill to navigate to the page, interact with the UI, and confirm changes work.
-
-### Stop Condition
-
-When all stories have `passes: true`, Ralph outputs `<promise>COMPLETE</promise>` and the loop exits.
-
-## Debugging
-
-Check current state:
-
-```bash
-# See which stories are done
-cat prd.json | jq '.userStories[] | {id, title, passes}'
-
-# See learnings from previous iterations
-cat progress.txt
-
-# Check git history
-git log --oneline -10
-```
-
-## Customizing prompt.md
-
-Edit `prompt.md` to customize Ralph's behavior for your project:
-- Add project-specific quality check commands
-- Include codebase conventions
-- Add common gotchas for your stack
-
-## Archiving
-
-Ralph automatically archives previous runs when you start a new feature (different `branchName`). Archives are saved to `archive/YYYY-MM-DD-feature-name/`.
-
-## References
-
-- [Geoffrey Huntley's Ralph article](https://ghuntley.com/ralph/)
-- [Amp documentation](https://ampcode.com/manual)
+- Original [Ralph pattern](https://ghuntley.com/ralph/) by Geoffrey Huntley
+- Original [snarktank/ralph](https://github.com/snarktank/ralph) for Amp by Ryan Carson
+- Adapted for Claude Code with supervised mode and dynamic model selection
