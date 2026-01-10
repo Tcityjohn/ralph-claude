@@ -1,0 +1,34 @@
+# Grandma's Guidance
+Last reviewed: Not yet started
+Last story reviewed: None
+
+## Pre-flight Notes (Current Iteration)
+**Upcoming story:** Not yet determined
+**Branch drift:** N/A - first iteration
+**Conflict risk:** Low
+
+### Key Files Ralph Should Know About
+(Grandma will populate this before each iteration)
+
+### Warnings for This Story
+(Grandma will add specific warnings here)
+
+### Ground Truth Summary
+(Grandma will document key types/interfaces here)
+
+---
+
+## Current Assessment
+This is the first iteration. Ralph is starting fresh with no prior work to review.
+
+## Guidance for Next Iteration
+- Read the prd.json carefully before starting
+- Check progress.txt for any patterns previous runs discovered
+- Make sure you're on the correct git branch before making changes
+- Run quality checks (typecheck, lint, test) before committing
+
+## Patterns Noticed
+None yet - this is the first run.
+
+## History
+(Grandma will add notes here after each review)
