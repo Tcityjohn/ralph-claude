@@ -22,6 +22,11 @@ GRANDMA_MODEL="claude-opus-4-5-20251101"
 MODEL_LOW="claude-3-5-haiku-20241022"
 MODEL_MEDIUM="claude-sonnet-4-20250514"
 MODEL_HIGH="claude-opus-4-5-20251101"
+INIT_MODEL="$MODEL_LOW"  # Session init uses Haiku for cost efficiency
+
+# Session state file
+SESSION_STATE_FILE="$SCRIPT_DIR/session-state.txt"
+SESSION_INIT_PROMPT="$SCRIPT_DIR/session-init.md"
 
 # Function to get Ralph's model based on story complexity
 get_ralph_model() {
@@ -127,6 +132,37 @@ echo -e "${PURPLE}╔═══════════════════�
 echo -e "${PURPLE}║  Ralph Supervised - Grandma's Watching                    ║${NC}"
 echo -e "${PURPLE}║  Max iterations: $MAX_ITERATIONS                                       ║${NC}"
 echo -e "${PURPLE}╚═══════════════════════════════════════════════════════════╝${NC}"
+echo ""
+
+# ═══════════════════════════════════════════════════════════
+# PHASE 0: SESSION INITIALIZATION (Anthropic-style)
+# Runs ONCE at session start, not every iteration
+# ═══════════════════════════════════════════════════════════
+echo -e "${PURPLE}───────────────────────────────────────────────────────────${NC}"
+echo -e "${PURPLE}  Phase 0: Session Initialization${NC}"
+echo -e "${PURPLE}  Model: Haiku (cost-efficient setup)${NC}"
+echo -e "${PURPLE}───────────────────────────────────────────────────────────${NC}"
+
+if [ -f "$SESSION_INIT_PROMPT" ]; then
+  INIT_PROMPT=$(cat "$SESSION_INIT_PROMPT")
+  INIT_OUTPUT=$(claude --model "$INIT_MODEL" --dangerously-skip-permissions --print "$INIT_PROMPT" 2>&1 | tee /dev/stderr) || true
+
+  # Check if session is blocked
+  if echo "$INIT_OUTPUT" | grep -q "<session>BLOCKED</session>"; then
+    echo ""
+    echo -e "${RED}════════════════════════════════════════════════════════${NC}"
+    echo -e "${RED}  Session Initialization: BLOCKED${NC}"
+    echo -e "${RED}  Environment issues detected.${NC}"
+    echo -e "${RED}  Check session-state.txt for details.${NC}"
+    echo -e "${RED}════════════════════════════════════════════════════════${NC}"
+    exit 1
+  fi
+
+  echo -e "${GREEN}Session initialized. Environment ready.${NC}"
+else
+  echo -e "${YELLOW}No session-init.md found. Skipping Phase 0.${NC}"
+fi
+
 echo ""
 
 for i in $(seq 1 $MAX_ITERATIONS); do

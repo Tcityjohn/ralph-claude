@@ -25,16 +25,17 @@ At the TOP of `guidance.txt`, you'll find **Pre-flight Notes** that Grandma just
 ## Your Task
 
 1. **Read guidance.txt** - What does Grandma say? Follow her advice!
-2. Read the PRD at `prd.json` (in the same directory as this file)
-3. Read the progress log at `progress.txt` (check Codebase Patterns section first)
-4. Check you're on the correct branch from PRD `branchName`. If not, check it out or create from main.
-5. Pick the **highest priority** user story where `passes: false`
-6. Implement that single user story
-7. Run quality checks (e.g., typecheck, lint, test - use whatever your project requires)
-8. Update CLAUDE.md files if you discover reusable patterns (see below)
-9. If checks pass, commit ALL changes with message: `feat: [Story ID] - [Story Title]`
-10. Update the PRD to set `passes: true` for the completed story
-11. Append your progress to `progress.txt`
+2. **Read session-state.txt** - Check the session initialization notes (environment status, any issues)
+3. Read the PRD at `prd.json` (in the same directory as this file)
+4. Read the progress log at `progress.txt` (check Codebase Patterns section first)
+5. Check you're on the correct branch from PRD `branchName`. If not, check it out or create from main.
+6. Pick the **highest priority** user story where `passes: false`
+7. Implement that single user story
+8. Run quality checks (e.g., typecheck, lint, test - use whatever your project requires)
+9. Update CLAUDE.md files if you discover reusable patterns (see below)
+10. If checks pass, commit ALL changes with message: `feat: [Story ID] - [Story Title]`
+11. Update the PRD to set `passes: true` for the completed story
+12. Append your progress to `progress.txt`
 
 ## Progress Report Format
 
@@ -107,9 +108,32 @@ Before committing, check if any edited files have learnings worth preserving in 
 
 For any story that changes UI, you MUST verify it works in the browser:
 
-1. Use your browser automation capabilities if available
-2. Or document the expected behavior for manual verification
-3. Include what you tested in your progress.txt entry
+### Option 1: Puppeteer MCP (Recommended)
+If Puppeteer MCP is available, use it for end-to-end verification:
+1. Launch browser and navigate to the relevant page
+2. Verify the UI renders correctly
+3. Test user interactions (clicks, forms, etc.)
+4. Take screenshots for evidence
+5. Document results in progress.txt
+
+### Option 2: Manual Browser Testing
+If no automation available:
+1. Document the exact steps to test manually
+2. List expected outcomes for each step
+3. Note the URL and any required test data
+
+### Option 3: Component/Integration Tests
+If browser automation isn't feasible:
+1. Write or run existing component tests
+2. Verify API responses match expected format
+3. Check that state changes propagate correctly
+
+### Include in Progress Report
+For any frontend story, include:
+- Testing method used (Puppeteer/Manual/Component)
+- What was verified
+- Screenshots or test output (if available)
+- Any issues discovered
 
 A frontend story is NOT complete until browser verification passes or is documented.
 

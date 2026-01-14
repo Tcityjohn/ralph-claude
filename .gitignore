@@ -1,6 +1,9 @@
 # Ralph working files (generated during runs)
 prd.json
 progress.txt
+guidance.txt
+session-state.txt
+init.sh
 .last-branch
 
 # Archive is optional to commit

@@ -8,9 +8,12 @@ Based on [Geoffrey Huntley's Ralph pattern](https://ghuntley.com/ralph/), adapte
 
 ## Features
 
+- **Hybrid Architecture**: Combines Anthropic's Agent Harness patterns with Grandma supervision
+- **Session Initialization**: Anthropic-style Phase 0 ensures reproducible environments
 - **Supervised Mode**: Grandma agent reviews Ralph's work after each iteration
 - **Pre-flight Checks**: Catches branch drift and data model divergence before work starts
 - **Dynamic Model Selection**: Uses Haiku, Sonnet, or Opus based on task complexity
+- **E2E Testing**: Puppeteer MCP support for browser-level verification
 - **Automatic Archiving**: Previous runs are saved when switching features
 
 ## Prerequisites
@@ -65,11 +68,22 @@ Based on [Geoffrey Huntley's Ralph pattern](https://ghuntley.com/ralph/), adapte
 
 ## How It Works
 
-### Supervised Mode (3-Phase Loop)
+### Supervised Mode (4-Phase Hybrid Loop)
+
+This implementation combines **Anthropic's Agent Harness** patterns (structured session initialization, reproducible environments) with **Grandma supervision** (active quality gates).
 
 ```
-Each iteration runs 3 phases:
+SESSION START (runs once):
+┌─────────────────────────────────────────────────────────────┐
+│ Phase 0: SESSION INITIALIZATION (Haiku - cost efficient)    │
+│   - Verifies environment and dependencies                   │
+│   - Checks git state and branch                             │
+│   - Runs basic build/test to ensure health                  │
+│   - Creates session-state.txt and init.sh                   │
+│   - Can BLOCK if environment is broken                      │
+└─────────────────────────────────────────────────────────────┘
 
+ITERATION LOOP (repeats per story):
 ┌─────────────────────────────────────────────────────────────┐
 │ Phase 1: GRANDMA PRE-FLIGHT (Opus 4.5)                      │
 │   - Checks git diff from main (drift detection)             │
@@ -78,9 +92,10 @@ Each iteration runs 3 phases:
 │   - Can PAUSE before Ralph starts if risk is high           │
 ├─────────────────────────────────────────────────────────────┤
 │ Phase 2: RALPH IMPLEMENTATION (Haiku/Sonnet/Opus)           │
-│   - Reads pre-flight warnings from guidance.txt             │
+│   - Reads session-state.txt and guidance.txt                │
 │   - Implements the next incomplete story                    │
 │   - Model selected based on story complexity                │
+│   - Puppeteer MCP for E2E testing (if available)            │
 ├─────────────────────────────────────────────────────────────┤
 │ Phase 3: GRANDMA POST-REVIEW (Opus 4.5)                     │
 │   - Reviews what Ralph just did                             │
@@ -88,6 +103,19 @@ Each iteration runs 3 phases:
 │   - Can PAUSE if something needs human attention            │
 └─────────────────────────────────────────────────────────────┘
 ```
+
+### Why the Hybrid Approach?
+
+This combines the best of both worlds:
+
+| Component | Source | Benefit |
+|-----------|--------|---------|
+| Session initialization | Anthropic Harness | Reproducible environments, catches issues early |
+| `init.sh` generation | Anthropic Harness | Any session can recreate the setup |
+| Pre-flight checks | Grandma (Original) | Active risk assessment before each story |
+| Dynamic model selection | Ralph (Original) | Cost efficiency (Haiku for simple, Opus for complex) |
+| Post-review supervision | Grandma (Original) | Quality gates with human escalation |
+| Puppeteer E2E testing | Anthropic Harness | Browser-level verification |
 
 ### Story Complexity (Model Selection)
 
@@ -107,6 +135,7 @@ If omitted, complexity defaults to `"medium"` (Sonnet).
 |------|---------|
 | `ralph-supervised.sh` | **Recommended** - Loop with Grandma supervision |
 | `ralph-claude.sh` | Basic loop script (no supervision) |
+| `session-init.md` | **New** - Anthropic-style session initialization prompt |
 | `prompt-supervised.md` | Instructions for supervised Ralph |
 | `prompt-claude.md` | Instructions for basic Ralph |
 | `grandma-preflight.md` | Grandma's pre-flight check instructions |
@@ -114,8 +143,11 @@ If omitted, complexity defaults to `"medium"` (Sonnet).
 | `prd.json.example` | Example PRD format with complexity field |
 | `story-template.md` | Template for writing stories |
 | `guidance.txt.template` | Template for Grandma's guidance file |
+| `init.sh.template` | **New** - Template for reproducible environment setup |
 | `progress.txt` | Cumulative learnings (auto-generated) |
 | `guidance.txt` | Grandma's guidance for Ralph (auto-generated) |
+| `session-state.txt` | **New** - Session health status (auto-generated) |
+| `init.sh` | **New** - Reproducible setup script (auto-generated) |
 
 ## Story Sizing Rules
 
@@ -167,6 +199,12 @@ cat progress.txt
 # See Grandma's guidance
 cat guidance.txt
 
+# Check session state (new)
+cat session-state.txt
+
+# Re-initialize environment (new)
+./init.sh
+
 # Check git history
 git log --oneline -10
 ```
@@ -181,4 +219,5 @@ git log --oneline -10
 
 - Original [Ralph pattern](https://ghuntley.com/ralph/) by Geoffrey Huntley
 - Original [snarktank/ralph](https://github.com/snarktank/ralph) for Amp by Ryan Carson
-- Adapted for Claude Code with supervised mode and dynamic model selection
+- [Anthropic Agent Harness patterns](https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents) for session initialization
+- Adapted for Claude Code with supervised mode, dynamic model selection, and hybrid architecture
