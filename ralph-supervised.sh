@@ -9,6 +9,9 @@
 
 set -e
 
+# IMPORTANT: Unset API key so Claude CLI uses Max subscription instead of API credits
+unset ANTHROPIC_API_KEY
+
 MAX_ITERATIONS=${1:-10}
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PRD_FILE="$SCRIPT_DIR/prd.json"
