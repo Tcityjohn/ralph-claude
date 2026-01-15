@@ -32,6 +32,20 @@ Based on [Geoffrey Huntley's Ralph pattern](https://ghuntley.com/ralph/), adapte
 
 3. A **git repository** for your project
 
+4. **Anthropic billing** - one of:
+   - **API credits** (default): Set `ANTHROPIC_API_KEY` environment variable
+   - **Max subscription**: Set `RALPH_USE_SUBSCRIPTION=true` to use your Claude Max plan instead of API credits
+
+   ```bash
+   # For Max plan users (recommended - included in subscription):
+   export RALPH_USE_SUBSCRIPTION=true
+   ./ralph-supervised.sh 40
+
+   # For API credit users (default):
+   export ANTHROPIC_API_KEY=sk-ant-...
+   ./ralph-supervised.sh 40
+   ```
+
 ## Quick Start
 
 ### 1. Create your prd.json
