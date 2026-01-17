@@ -12,7 +12,7 @@ set -e
 # Authentication: Claude CLI can use either API credits or Max subscription
 # - If you have a Max plan: set RALPH_USE_SUBSCRIPTION=true to use it instead of API credits
 # - If you only have API credits: leave ANTHROPIC_API_KEY set (default behavior)
-if [[ "${RALPH_USE_SUBSCRIPTION:-false}" == "true" ]]; then
+if [[ "${RALPH_USE_SUBSCRIPTION:-true}" == "true" ]]; then
   unset ANTHROPIC_API_KEY
   echo "Using Max subscription (RALPH_USE_SUBSCRIPTION=true)"
 fi
