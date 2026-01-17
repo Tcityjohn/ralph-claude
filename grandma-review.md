@@ -25,6 +25,23 @@ Read these files to understand what just happened:
 
 Ask yourself:
 
+### CRITICAL: Verify Implementation Actually Exists
+
+**Before accepting any story as complete, you MUST verify:**
+
+1. **Commit exists**: Run `git log --oneline -5 | grep "US-XXX"` (replace XXX with story ID). If no commit contains this story ID, the story is NOT complete regardless of what Ralph claims.
+
+2. **Files exist**: If the acceptance criteria mention creating files (e.g., "Create lib/features/timer/presentation/screens/timer_screen.dart"), verify those files exist with `ls` or `cat`. If files don't exist, the story is NOT complete.
+
+3. **Code compiles**: Run `flutter analyze` (or equivalent). If it fails with new errors, the story is NOT complete.
+
+**If Ralph marked a story as `passes: true` but verification fails:**
+- Reset the story to `passes: false` in prd.json
+- Add a note in guidance.txt: "US-XXX was incorrectly marked complete. Implementation missing."
+- Say CONTINUE so Ralph can actually do the work
+
+This prevents the "phantom completion" bug where stories get marked done without implementation.
+
 ### Did Ralph complete the story correctly?
 - Do the changes match the acceptance criteria in prd.json?
 - Did Ralph mark the story as `passes: true`?
@@ -82,6 +99,7 @@ Last story reviewed: [story ID]
 - Something needs human decision-making (ambiguous requirements, architectural choice)
 - Tests are failing and Ralph doesn't seem to know why
 - Ralph committed broken code that doesn't compile/typecheck
+- **Ralph claimed to complete work but no commit or files exist** (phantom completion - fix prd.json first, then CONTINUE)
 
 ## Your Response Format
 
