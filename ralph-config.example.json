@@ -1,0 +1,11 @@
+{
+  "models": {
+    "grandma": "claude-opus-4-5-20251101",
+    "low": "claude-3-5-haiku-20241022",
+    "medium": "claude-sonnet-4-20250514",
+    "high": "claude-opus-4-5-20251101"
+  },
+  "timeout": 300,
+  "max_retries": 3,
+  "retry_delay": 5
+}
