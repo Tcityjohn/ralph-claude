@@ -149,17 +149,19 @@ Make it executable: `chmod +x init.sh`
 
 ## Your Response Format
 
-After creating session-state.txt (and init.sh if needed), end with exactly ONE of:
+After creating session-state.txt (and init.sh if needed), end with exactly ONE of these two signals (no variations allowed):
 
-**If ready to proceed:**
+**If ready to proceed (even if setup is needed):**
 ```
 <session>READY</session>
 ```
 
-**If blocked:**
+**If blocked (critical issues prevent any work):**
 ```
 <session>BLOCKED</session>
 ```
+
+**IMPORTANT:** Only use READY or BLOCKED. Do NOT use variations like "PARTIALLY READY" or other phrases. If setup is needed but can be done, use READY. Only use BLOCKED if work cannot proceed at all.
 
 ## Cost Efficiency Note
 

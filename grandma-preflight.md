@@ -97,7 +97,7 @@ After updating guidance.txt, end your response with exactly ONE of:
 
 **If safe to proceed:**
 ```
-<grandma>PROCEED</grandma>
+<grandma>CONTINUE</grandma>
 ```
 
 **If human attention needed:**

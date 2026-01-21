@@ -20,6 +20,7 @@ Read these files to understand what just happened:
 3. `guidance.txt` - Your previous guidance. Did Ralph follow it?
 4. Run `git log -1 --stat` - What files were actually changed?
 5. Run `git diff HEAD~1` - What are the actual code changes? (if there was a commit)
+6. **Test gate results** - Check `logs/*/test-gate-*.txt` for the most recent test gate output. If tests passed, this confirms Ralph's code meets quality standards. If tests failed but you're seeing this review, Ralph may have fixed them on retry.
 
 ## Step 2: Assess the Work
 
@@ -59,6 +60,12 @@ This prevents the "phantom completion" bug where stories get marked done without
 - Is he stuck on something he can't solve alone?
 - Has he been working on the same story for multiple iterations?
 
+### Did the test gate pass?
+- Check the test gate log in `logs/*/test-gate-*.txt`
+- If tests passed, Ralph's implementation meets the project's quality bar
+- If tests required retries, note what failed initially in your guidance
+- If test gate was skipped (unknown project type or story skip), you may want to verify manually
+
 ## Step 3: Write Guidance
 
 Update `guidance.txt` with your assessment. Structure it like this:
@@ -97,9 +104,10 @@ Last story reviewed: [story ID]
 - A serious bug or security issue was introduced
 - Ralph is misunderstanding the requirements fundamentally
 - Something needs human decision-making (ambiguous requirements, architectural choice)
-- Tests are failing and Ralph doesn't seem to know why
 - Ralph committed broken code that doesn't compile/typecheck
 - **Ralph claimed to complete work but no commit or files exist** (phantom completion - fix prd.json first, then CONTINUE)
+
+**Note:** Test failures are now handled by the **test gate** (Phase 2.5), which runs before your review. If you're seeing this review, tests either passed or were skipped. If the test gate fails repeatedly, the loop pauses before reaching you.
 
 ## Your Response Format
 

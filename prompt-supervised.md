@@ -104,6 +104,23 @@ Before committing, check if any edited files have learnings worth preserving in 
 3. Do NOT mark the story as complete
 4. Grandma will review and may provide guidance or pause for human help
 
+## Mandatory Test Gate
+
+After you complete your implementation, a **test gate runs automatically** before Grandma's review. This runs the project's configured tests (e.g., `flutter test`, `npm test`, etc.).
+
+**What this means for you:**
+- You do NOT need to run tests manually before committing (the test gate handles this)
+- If tests fail, you may be asked to fix them before proceeding to review
+- Focus on writing correct code the first time - the test gate catches regressions
+
+**Test gate configuration** (in `prd.json`):
+- `testing.projectType`: Project type (auto-detected if not set)
+- `testing.required`: Which commands must pass (default: `["test"]`)
+- `testing.retries`: How many fix attempts before pausing (default: `0`)
+- Story-level `skipTests: true`: Bypasses test gate for that story
+
+If the test gate fails repeatedly, the loop will pause for human intervention.
+
 ## Browser Testing (Required for Frontend Stories)
 
 For any story that changes UI, you MUST verify it works in the browser:

@@ -479,6 +479,256 @@ get_current_story() {
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# TEST GATE HELPERS
+# Auto-detect project type and run mandatory tests between implementation and review
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# Detect project type from marker files
+detect_project_type() {
+  local dir="${1:-.}"
+
+  # Check for Flutter
+  if [ -f "$dir/pubspec.yaml" ]; then
+    echo "flutter"
+    return
+  fi
+
+  # Check package.json for JS project types
+  if [ -f "$dir/package.json" ]; then
+    if grep -q '"react-native"' "$dir/package.json" 2>/dev/null; then
+      echo "react-native"
+      return
+    fi
+    if grep -q '"next"' "$dir/package.json" 2>/dev/null; then
+      echo "nextjs"
+      return
+    fi
+    echo "nodejs"
+    return
+  fi
+
+  # Check for Python
+  if [ -f "$dir/pyproject.toml" ] || [ -f "$dir/requirements.txt" ]; then
+    echo "python"
+    return
+  fi
+
+  # Check for Rust
+  if [ -f "$dir/Cargo.toml" ]; then
+    echo "rust"
+    return
+  fi
+
+  # Check for Go
+  if [ -f "$dir/go.mod" ]; then
+    echo "go"
+    return
+  fi
+
+  # Check for Ruby
+  if [ -f "$dir/Gemfile" ]; then
+    echo "ruby"
+    return
+  fi
+
+  # Check for Java/Kotlin
+  if [ -f "$dir/build.gradle" ] || [ -f "$dir/build.gradle.kts" ] || [ -f "$dir/pom.xml" ]; then
+    echo "java"
+    return
+  fi
+
+  echo "unknown"
+}
+
+# Get default test commands for a project type
+get_default_test_commands() {
+  local project_type="$1"
+
+  case "$project_type" in
+    flutter)
+      echo '{"test": "flutter test", "typecheck": "flutter analyze", "lint": "flutter analyze --no-fatal-warnings", "build": "flutter build apk --debug"}'
+      ;;
+    react-native)
+      echo '{"test": "npm test -- --watchAll=false", "typecheck": "npx tsc --noEmit", "lint": "npm run lint"}'
+      ;;
+    nextjs)
+      echo '{"test": "npm test", "typecheck": "npx tsc --noEmit", "lint": "npm run lint", "build": "npm run build"}'
+      ;;
+    nodejs)
+      echo '{"test": "npm test", "typecheck": "npx tsc --noEmit", "lint": "npm run lint"}'
+      ;;
+    python)
+      echo '{"test": "pytest", "typecheck": "mypy .", "lint": "ruff check ."}'
+      ;;
+    rust)
+      echo '{"test": "cargo test", "typecheck": "cargo check", "lint": "cargo clippy"}'
+      ;;
+    go)
+      echo '{"test": "go test ./...", "build": "go build ./..."}'
+      ;;
+    ruby)
+      echo '{"test": "bundle exec rspec", "lint": "bundle exec rubocop"}'
+      ;;
+    java)
+      echo '{"test": "./gradlew test", "build": "./gradlew build"}'
+      ;;
+    *)
+      echo '{}'
+      ;;
+  esac
+}
+
+# Get effective test commands (PRD overrides + defaults)
+get_effective_test_commands() {
+  local prd_file="$1"
+  local project_type="$2"
+
+  local defaults=$(get_default_test_commands "$project_type")
+  local prd_commands=$(jq -r '.testing.commands // {}' "$prd_file" 2>/dev/null)
+
+  # Merge: PRD overrides defaults
+  echo "$defaults" "$prd_commands" | jq -s '.[0] * .[1]'
+}
+
+# Check if current story should skip tests
+should_skip_tests() {
+  local prd_file="$1"
+  local story_id="$2"
+
+  # Check story-level skip
+  local story_skip=$(jq -r --arg id "$story_id" '
+    .userStories[] | select(.id == $id) | .skipTests // false
+  ' "$prd_file" 2>/dev/null)
+
+  if [ "$story_skip" = "true" ]; then
+    return 0
+  fi
+
+  # Check if story is in allowSkipOnStories list
+  local in_skip_list=$(jq -r --arg id "$story_id" '
+    .testing.allowSkipOnStories // [] | contains([$id])
+  ' "$prd_file" 2>/dev/null)
+
+  if [ "$in_skip_list" = "true" ]; then
+    return 0
+  fi
+
+  return 1
+}
+
+# Run the test gate
+# Returns: 0 if all required tests pass, 1 if any fail
+run_test_gate() {
+  local iteration="$1"
+  local prd_file="$2"
+  local log_dir="$3"
+
+  # Get current story ID
+  local story_id=$(jq -r '
+    .userStories
+    | sort_by(.priority)
+    | map(select(.passes == false))
+    | .[0].id // "unknown"
+  ' "$prd_file" 2>/dev/null)
+
+  # Check if tests should be skipped for this story
+  if should_skip_tests "$prd_file" "$story_id"; then
+    local skip_reason=$(jq -r --arg id "$story_id" '
+      .userStories[] | select(.id == $id) | .skipTestsReason // "Story configured to skip tests"
+    ' "$prd_file" 2>/dev/null)
+    echo -e "${YELLOW}  Test gate skipped for $story_id: $skip_reason${NC}"
+    return 0
+  fi
+
+  # Get project type (from PRD or auto-detect)
+  local project_type=$(jq -r '.testing.projectType // empty' "$prd_file" 2>/dev/null)
+  if [ -z "$project_type" ]; then
+    project_type=$(detect_project_type "$SCRIPT_DIR")
+  fi
+
+  if [ "$project_type" = "unknown" ]; then
+    echo -e "${YELLOW}  Test gate: Unknown project type, skipping tests${NC}"
+    return 0
+  fi
+
+  echo -e "${BLUE}  Project type: $project_type${NC}"
+
+  # Get required commands (default: just "test")
+  local required=$(jq -r '.testing.required // ["test"] | .[]' "$prd_file" 2>/dev/null)
+  if [ -z "$required" ]; then
+    required="test"
+  fi
+
+  # Get effective commands
+  local commands=$(get_effective_test_commands "$prd_file" "$project_type")
+
+  # Get timeout
+  local test_timeout=$(jq -r '.testing.timeout // 300' "$prd_file" 2>/dev/null)
+
+  local test_log="$log_dir/test-gate-$iteration.txt"
+  echo "Test Gate - Iteration $iteration" > "$test_log"
+  echo "Story: $story_id" >> "$test_log"
+  echo "Project type: $project_type" >> "$test_log"
+  echo "Timestamp: $(date)" >> "$test_log"
+  echo "---" >> "$test_log"
+
+  local all_passed=true
+
+  for cmd_name in $required; do
+    local cmd=$(echo "$commands" | jq -r --arg name "$cmd_name" '.[$name] // empty')
+
+    if [ -z "$cmd" ]; then
+      echo -e "${YELLOW}  Warning: Required command '$cmd_name' not defined, skipping${NC}"
+      echo "WARN: $cmd_name - not defined, skipped" >> "$test_log"
+      continue
+    fi
+
+    echo -e "${BLUE}  Running $cmd_name: $cmd${NC}"
+    echo "" >> "$test_log"
+    echo "=== $cmd_name ===" >> "$test_log"
+    echo "Command: $cmd" >> "$test_log"
+    echo "" >> "$test_log"
+
+    local cmd_output="$TEMP_DIR/test-$cmd_name-$iteration.txt"
+
+    set +e
+    $TIMEOUT_CMD $test_timeout bash -c "cd '$SCRIPT_DIR' && $cmd" > "$cmd_output" 2>&1
+    local exit_code=$?
+    set -e
+
+    # Append output to log
+    cat "$cmd_output" >> "$test_log"
+
+    if [ $exit_code -eq 124 ]; then
+      echo -e "${RED}  $cmd_name: TIMEOUT (${test_timeout}s)${NC}"
+      echo "" >> "$test_log"
+      echo "RESULT: TIMEOUT after ${test_timeout}s" >> "$test_log"
+      all_passed=false
+    elif [ $exit_code -ne 0 ]; then
+      echo -e "${RED}  $cmd_name: FAILED (exit code $exit_code)${NC}"
+      echo "" >> "$test_log"
+      echo "RESULT: FAILED (exit code $exit_code)" >> "$test_log"
+      all_passed=false
+    else
+      echo -e "${GREEN}  $cmd_name: PASSED${NC}"
+      echo "" >> "$test_log"
+      echo "RESULT: PASSED" >> "$test_log"
+    fi
+  done
+
+  echo "" >> "$test_log"
+  echo "---" >> "$test_log"
+
+  if [ "$all_passed" = true ]; then
+    echo "OVERALL: PASSED" >> "$test_log"
+    return 0
+  else
+    echo "OVERALL: FAILED" >> "$test_log"
+    return 1
+  fi
+}
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # HELPER: Pause with message
 # ═══════════════════════════════════════════════════════════════════════════════
 pause_loop() {
@@ -573,6 +823,42 @@ if [ "$INCOMPLETE_COUNT" -eq 0 ]; then
   exit 0
 fi
 echo -e "${GREEN}  PRD valid: $INCOMPLETE_COUNT incomplete stories${NC}"
+
+# Validate testing configuration (if present)
+echo -n "  Validating test gate config... "
+DETECTED_PROJECT_TYPE=$(detect_project_type "$SCRIPT_DIR")
+PRD_PROJECT_TYPE=$(jq -r '.testing.projectType // empty' "$PRD_FILE" 2>/dev/null)
+
+if [ -n "$PRD_PROJECT_TYPE" ]; then
+  # Validate projectType enum
+  case "$PRD_PROJECT_TYPE" in
+    flutter|react-native|nextjs|nodejs|python|rust|go|ruby|java)
+      echo -e "${GREEN}OK (explicit: $PRD_PROJECT_TYPE)${NC}"
+      ;;
+    *)
+      echo -e "${YELLOW}WARN: Unknown projectType '$PRD_PROJECT_TYPE', will use defaults${NC}"
+      ;;
+  esac
+elif [ "$DETECTED_PROJECT_TYPE" != "unknown" ]; then
+  echo -e "${GREEN}OK (auto-detected: $DETECTED_PROJECT_TYPE)${NC}"
+else
+  echo -e "${YELLOW}WARN: Unknown project type, test gate will be skipped${NC}"
+fi
+
+# Check if required commands are defined when testing config exists
+HAS_TESTING_CONFIG=$(jq 'has("testing")' "$PRD_FILE" 2>/dev/null)
+if [ "$HAS_TESTING_CONFIG" = "true" ]; then
+  REQUIRED_CMDS=$(jq -r '.testing.required // ["test"] | .[]' "$PRD_FILE" 2>/dev/null)
+  EFFECTIVE_TYPE="${PRD_PROJECT_TYPE:-$DETECTED_PROJECT_TYPE}"
+  EFFECTIVE_COMMANDS=$(get_effective_test_commands "$PRD_FILE" "$EFFECTIVE_TYPE")
+
+  for cmd_name in $REQUIRED_CMDS; do
+    cmd=$(echo "$EFFECTIVE_COMMANDS" | jq -r --arg name "$cmd_name" '.[$name] // empty')
+    if [ -z "$cmd" ]; then
+      echo -e "${YELLOW}  WARN: Required command '$cmd_name' not defined for $EFFECTIVE_TYPE${NC}"
+    fi
+  done
+fi
 
 # Archive previous run if branch changed
 LAST_BRANCH_FILE="$SCRIPT_DIR/.last-branch"
@@ -765,6 +1051,66 @@ for i in $(seq $START_ITERATION $MAX_ITERATIONS); do
     echo -e "${GREEN}════════════════════════════════════════════════════════════${NC}"
     save_state "$i" "complete" "complete"
     exit 0
+  fi
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # PHASE 2.5: Test Gate
+  # Runs mandatory tests after Ralph implementation, before Grandma review
+  # ─────────────────────────────────────────────────────────────────────────────
+  echo ""
+  echo -e "${PURPLE}Phase 2.5: Test Gate${NC}"
+
+  save_state "$i" "test_gate" "in_progress"
+
+  # Get retry count from PRD
+  TEST_RETRIES=$(jq -r '.testing.retries // 0' "$PRD_FILE" 2>/dev/null)
+  test_attempt=0
+  test_gate_passed=false
+
+  while [ $test_attempt -le $TEST_RETRIES ]; do
+    if run_test_gate "$i" "$PRD_FILE" "$LOG_DIR"; then
+      echo -e "${GREEN}Test gate passed.${NC}"
+      test_gate_passed=true
+      break
+    fi
+
+    test_attempt=$((test_attempt + 1))
+
+    if [ $test_attempt -le $TEST_RETRIES ]; then
+      echo -e "${YELLOW}Tests failed. Asking Ralph to fix (retry $test_attempt/$TEST_RETRIES)${NC}"
+
+      # Build a prompt to fix failing tests
+      FIX_PROMPT="Tests failed after your implementation. Please review the test output in the logs and fix the failing tests.
+
+Read \`$LOG_DIR/test-gate-$i.txt\` to see what failed.
+
+Your task:
+1. Read the test failure output
+2. Fix the code to make tests pass
+3. Do NOT mark the story as complete again - just fix the tests
+4. Commit your fixes
+
+Focus only on fixing what's broken. Don't refactor unrelated code."
+
+      RALPH_FIX_OUTPUT="$TEMP_DIR/ralph-fix-$i-$test_attempt.txt"
+
+      if ! run_claude "$RALPH_MODEL" "$FIX_PROMPT" "Ralph test fix $i-$test_attempt" "$RALPH_FIX_OUTPUT"; then
+        echo -e "${YELLOW}Ralph fix attempt failed, continuing to next retry${NC}"
+      fi
+    else
+      # All retries exhausted
+      echo "" >> "$GUIDANCE_FILE"
+      echo "## Test Gate Failed (Iteration $i)" >> "$GUIDANCE_FILE"
+      echo "Tests failed after $TEST_RETRIES retries." >> "$GUIDANCE_FILE"
+      echo "See log: $LOG_DIR/test-gate-$i.txt" >> "$GUIDANCE_FILE"
+      echo "" >> "$GUIDANCE_FILE"
+      pause_loop "Test gate failed after $TEST_RETRIES retries" "$i" "test_gate"
+    fi
+  done
+
+  if [ "$test_gate_passed" != "true" ]; then
+    # This shouldn't happen, but safety check
+    pause_loop "Test gate did not pass" "$i" "test_gate"
   fi
 
   # ─────────────────────────────────────────────────────────────────────────────
