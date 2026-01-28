@@ -43,6 +43,23 @@ Verify these exist:
 2. Are we on the correct branch per `prd.json`?
 3. How many stories are complete vs remaining?
 
+### Check Design Context (if applicable)
+If `design-spec.json` exists and `prd.json` has `hasDesignSpec: true`:
+
+1. **Verify Story 0 completion**: If Story 0 ("Setup Design System") exists and is marked `passes: true`, check that the theme file exists:
+   ```bash
+   ls lib/theme/app_theme.dart 2>/dev/null || echo "WARNING: Theme file missing but Story 0 complete"
+   ```
+
+2. **Flag drift**: If the theme file doesn't exist but UI stories have been completed, note in session-state.txt:
+   ```
+   ## Design Drift Warning
+   Theme file missing but UI stories completed. Ralph may have hardcoded values.
+   Consider rerunning Story 0 or manually creating lib/theme/app_theme.dart.
+   ```
+
+This ensures design-system setup wasn't skipped or lost between sessions.
+
 ## Step 3: Run Basic Tests
 
 ### Verify Project Builds/Works

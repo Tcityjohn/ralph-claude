@@ -48,6 +48,25 @@ This prevents the "phantom completion" bug where stories get marked done without
 - Did Ralph mark the story as `passes: true`?
 - If not marked complete, is the work actually unfinished or did Ralph forget?
 
+### Does the implementation match the design spec?
+
+**If `design-spec.json` exists and this was a UI story:**
+
+1. **Theme usage**: Check that Ralph used theme colors/typography instead of hardcoded values
+   - Run `grep -r "0x" lib/` or `grep -r "#" lib/` to find hardcoded colors
+   - If found, note in guidance: "Use Theme.of(context).colorScheme instead of hardcoded colors"
+
+2. **Component structure**: If the story has a `visual_reference` in prd.json:
+   - Look up that screen in design-spec.json
+   - Verify the `keyElements` are implemented
+   - Check that `interactions` are handled
+
+3. **Theme file exists**: If Story 0 (Setup Design System) was supposed to run:
+   - Verify `lib/theme/app_theme.dart` exists
+   - Verify it exports `AppTheme.lightTheme` and `AppTheme.darkTheme`
+
+**Design compliance issues are NOT blockers** - note them in guidance.txt for the next iteration to fix. Only PAUSE if Ralph is completely ignoring the design spec.
+
 ### Are there any red flags?
 - **Syntax errors** or obvious bugs in the code?
 - **Wrong approach** that will cause problems later?

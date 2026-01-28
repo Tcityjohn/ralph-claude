@@ -37,6 +37,70 @@ At the TOP of `guidance.txt`, you'll find **Pre-flight Notes** that Grandma just
 11. Update the PRD to set `passes: true` for the completed story
 12. Append your progress to `progress.txt`
 
+## Design Context (Required for UI Stories)
+
+Before implementing any UI story, check if `design-spec.json` exists in the build directory. If it does, **you must follow it**.
+
+### Reading design-spec.json
+
+The file contains:
+- `tokens.colors` - All color values (primary, secondary, accent, background, text, surface)
+- `tokens.typography` - Font stack, heading font, body font
+- `tokens.spacing` - Spacing unit and scale values
+- `tokens.borderRadius` - small, medium, large values
+- `motion.style` - Animation approach ('subtle', 'expressive', 'minimal')
+- `motion.duration` - Animation timing (fast, normal, slow in ms)
+- `screens` - Screen blueprints with keyElements, interactions, and HTML mockups
+- `aesthetic` - Design direction (primary style, signature element, creative risk)
+
+### Using Design Tokens
+
+**CRITICAL: Never hardcode colors, fonts, or spacing.**
+
+1. Story 0 creates the theme file at `lib/theme/app_theme.dart`
+2. All subsequent stories MUST import and use this theme
+3. Use theme colors via `Theme.of(context).colorScheme.primary` etc.
+4. Use text styles via `Theme.of(context).textTheme.headlineMedium` etc.
+5. Use spacing constants from the theme, not magic numbers
+
+### Using Screen Blueprints
+
+Each screen in `screens` has:
+- `type` - Screen category (main-action, list-view, profile, etc.)
+- `keyElements` - Components that must be present
+- `interactions` - User interactions to implement
+- `relatedStories` - Which stories map to this screen
+- `html` - Reference HTML mockup (if available)
+
+When implementing a UI story:
+1. Check `prd.json` for the story's `visual_reference` field
+2. Look up that screen in `design-spec.json`
+3. Follow the `keyElements` for component structure
+4. Implement `interactions` as specified
+5. Reference the `html` mockup for visual guidance
+
+### Story Visual References
+
+If a story in `prd.json` has a `visual_reference` field, it points to a screen name in `design-spec.json`. Match the blueprint structure, not just the acceptance criteria text.
+
+### Theme File Location
+
+```dart
+// Import in all UI files
+import 'package:app_name/theme/app_theme.dart';
+
+// Use in MaterialApp
+MaterialApp(
+  theme: AppTheme.lightTheme,
+  darkTheme: AppTheme.darkTheme,
+  // ...
+)
+```
+
+### If design-spec.json Doesn't Exist
+
+Fall back to Flutter defaults and iOS Human Interface Guidelines. Document this in progress.txt so Grandma knows no design context was available.
+
 ## Progress Report Format
 
 APPEND to progress.txt (never replace, always append):
