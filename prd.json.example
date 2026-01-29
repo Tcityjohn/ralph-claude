@@ -2,6 +2,17 @@
   "project": "MyApp",
   "branchName": "ralph/task-priority",
   "description": "Task Priority System - Add priority levels to tasks",
+
+  "testing": {
+    "projectType": "react",
+    "required": ["test"],
+    "commands": {
+      "test": "npm test -- --watchAll=false"
+    },
+    "timeout": 120,
+    "retries": 1
+  },
+
   "userStories": [
     {
       "id": "US-001",
