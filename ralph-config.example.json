@@ -5,7 +5,7 @@
     "medium": "claude-sonnet-4-20250514",
     "high": "claude-opus-4-5-20251101"
   },
-  "timeout": 300,
+  "timeout": 600,
   "max_retries": 3,
   "retry_delay": 5
 }

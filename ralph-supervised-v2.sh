@@ -92,7 +92,7 @@ GRANDMA_MODEL="claude-opus-4-5-20251101"
 MODEL_LOW="claude-3-5-haiku-20241022"
 MODEL_MEDIUM="claude-sonnet-4-20250514"
 MODEL_HIGH="claude-opus-4-5-20251101"
-CLAUDE_TIMEOUT=300
+CLAUDE_TIMEOUT=600
 MAX_RETRIES=3
 RETRY_DELAY=5
 
@@ -102,7 +102,7 @@ if [ -f "$CONFIG_FILE" ]; then
   MODEL_LOW=$(jq -r '.models.low // "claude-3-5-haiku-20241022"' "$CONFIG_FILE")
   MODEL_MEDIUM=$(jq -r '.models.medium // "claude-sonnet-4-20250514"' "$CONFIG_FILE")
   MODEL_HIGH=$(jq -r '.models.high // "claude-opus-4-5-20251101"' "$CONFIG_FILE")
-  CLAUDE_TIMEOUT=$(jq -r '.timeout // 300' "$CONFIG_FILE")
+  CLAUDE_TIMEOUT=$(jq -r '.timeout // 600' "$CONFIG_FILE")
   MAX_RETRIES=$(jq -r '.max_retries // 3' "$CONFIG_FILE")
   RETRY_DELAY=$(jq -r '.retry_delay // 5' "$CONFIG_FILE")
 fi
